@@ -513,21 +513,25 @@ contract YoloTokenTest is Test {
         assertEq(yolo.balanceOf(bot), 902);
     }
 
-    function test_GateWithoutCode_NoWhitelist_TaxStays() public {
+    function test_GateWithoutCode_PlainErc20() public {
         YoloToken bare = new YoloToken(PM, address(0xDEAD), safe, block.timestamp + 10); // a chain without the gate
+        assertFalse(bare.scheduled());
+        assertTrue(bare.tradingOpen());
         bare.transfer(PM, 200_000_000e18);
         vm.prank(PM);
-        vm.expectRevert(abi.encodeWithSelector(YoloToken.TradingNotOpen.selector, block.timestamp + 10));
-        bare.transfer(bot, 1);
+        bare.transfer(bot, 1); // before openAt: not refused
         vm.warp(bare.openAt());
         assertFalse(bare.whitelistActive());
         vm.prank(PM);
         bare.transfer(bot, 50_000_000e18);
-        assertEq(bare.balanceOf(bot), 50_000_000e18);
+        vm.prank(bot);
+        bare.transfer(PM, 50_000_000e18 + 1); // minute 0: the whole balance back, nothing on top
+        assertEq(bare.balanceOf(bot), 0);
         vm.warp(bare.openAt() + 30 minutes);
         vm.prank(PM);
         bare.transfer(bot, 1_000e18);
-        assertEq(bare.balanceOf(safe), 300e18);
+        assertEq(bare.balanceOf(bot), 1_000e18);
+        assertEq(bare.balanceOf(safe), 0, "no tax");
     }
 
     // ------------------------------------------------------------------ vestings

@@ -18,8 +18,7 @@ interface INftGate {
 ///         - minutes 0-30: only wallets of the NFT gate's snapshot of identity.md NFT holders buy, 500,000 YOLO per
 ///           NFT in the snapshot for the whole window (`NotWhitelisted` / `NftAllowanceExceeded` otherwise). The
 ///           snapshot must be sealed before `openAt`; if it is not, nobody buys in minutes 0-30
-///           (`SnapshotNotSealed`). If the gate address holds no code (a chain without the gate), there is no
-///           whitelist.
+///           (`SnapshotNotSealed`).
 ///         - minutes 30-60: anyone buys and sells, with a tax on both sides that falls linearly from 30% at minute
 ///           30 to 0 at minute 60.
 ///         - from minute 60: a plain ERC-20 for good.
@@ -38,6 +37,9 @@ interface INftGate {
 ///         0-30 a route whose output goes to a router first is refused, since the router is not in the snapshot
 ///         (the Universal Router's TAKE_ALL pays the buyer directly). Adding liquidity from a wallet is a transfer
 ///         into the PoolManager and pays the sell tax like a sell.
+///         If the gate address holds no code when the token is deployed (a chain without the gate), the token is a
+///         plain ERC-20 from the start: no opening time, no whitelist, no tax, and `openAt` is recorded but not held
+///         to the deployment window.
 contract YoloToken is ERC20 {
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000e18;
     uint256 public constant WHITELIST_SECONDS = 30 minutes;
@@ -51,8 +53,10 @@ contract YoloToken is ERC20 {
     address public immutable poolManager;
     /// @notice the deployer (the launch factory): never gated or taxed
     address public immutable launcher;
-    /// @notice NftGate of launch 0 (the snapshot); no code there = no whitelist
+    /// @notice NftGate of launch 0 (the snapshot); no code there at deployment = a plain ERC-20, no schedule
     address public immutable gate;
+    /// @notice whether the schedule (opening time, whitelist, taxes) applies: the gate had code at deployment
+    bool public immutable scheduled;
     /// @notice the project wallet (the treasury): receives the buy and sell tax
     address public immutable taxRecipient;
     /// @notice when trading opens (fixed at deployment): no buy before it; the window and the tax count from it
@@ -69,25 +73,30 @@ contract YoloToken is ERC20 {
     /// @param gate_ NftGate (launch 0)
     /// @param taxRecipient_ the project wallet (the treasury)
     /// @param openAt_ when trading opens (unix seconds): not before the deployment, at most MAX_OPEN_DELAY after it
+    ///        (checked only when the gate has code)
     constructor(address poolManager_, address gate_, address taxRecipient_, uint256 openAt_) ERC20("YOLO", "YOLO") {
         if (poolManager_ == address(0) || taxRecipient_ == address(0)) revert ZeroAddress();
-        if (openAt_ < block.timestamp || openAt_ > block.timestamp + MAX_OPEN_DELAY) revert BadOpenAt(openAt_);
+        bool scheduled_ = gate_.code.length != 0;
+        if (scheduled_ && (openAt_ < block.timestamp || openAt_ > block.timestamp + MAX_OPEN_DELAY)) {
+            revert BadOpenAt(openAt_);
+        }
         poolManager = poolManager_;
         launcher = msg.sender;
         gate = gate_;
+        scheduled = scheduled_;
         taxRecipient = taxRecipient_;
         openAt = openAt_;
         _mint(msg.sender, TOTAL_SUPPLY);
     }
 
-    /// @notice Whether buys from the pool are open (from `openAt` on).
+    /// @notice Whether buys from the pool are open (from `openAt` on; always without the gate's code).
     function tradingOpen() public view returns (bool) {
-        return block.timestamp >= openAt;
+        return !scheduled || block.timestamp >= openAt;
     }
 
     /// @notice The buy tax now, in basis points (0 outside minutes 30-60 after `openAt`).
     function buyTaxBps() public view returns (uint256) {
-        if (block.timestamp < openAt) return 0;
+        if (!scheduled || block.timestamp < openAt) return 0;
         uint256 e = block.timestamp - openAt;
         if (e < WHITELIST_SECONDS) return 0;
         return _taxNum(e) / (TAX_END_SECONDS - WHITELIST_SECONDS);
@@ -96,13 +105,13 @@ contract YoloToken is ERC20 {
     /// @notice The sell tax now, in basis points of all the seller parts with (30% in minutes 0-30 after `openAt`,
     ///         then down to 0 at minute 60; 0 before `openAt`).
     function sellTaxBps() public view returns (uint256) {
-        if (block.timestamp < openAt) return 0;
+        if (!scheduled || block.timestamp < openAt) return 0;
         return _taxNum(block.timestamp - openAt) / (TAX_END_SECONDS - WHITELIST_SECONDS);
     }
 
     /// @notice The sell tax now, in YOLO, of a sell that puts `intoPool` into the pool (taken on top of it).
     function sellTax(uint256 intoPool) public view returns (uint256) {
-        if (block.timestamp < openAt) return 0;
+        if (!scheduled || block.timestamp < openAt) return 0;
         return _sellTax(intoPool, _taxNum(block.timestamp - openAt));
     }
 
@@ -122,10 +131,16 @@ contract YoloToken is ERC20 {
 
     /// @notice Whether buys are for the snapshot's wallets only right now (minutes 0-30 after `openAt`).
     function whitelistActive() public view returns (bool) {
-        return block.timestamp >= openAt && block.timestamp - openAt < WHITELIST_SECONDS && gate.code.length != 0;
+        return scheduled && block.timestamp >= openAt && block.timestamp - openAt < WHITELIST_SECONDS
+            && gate.code.length != 0;
     }
 
     function _update(address from, address to, uint256 value) internal override {
+        if (!scheduled) {
+            // no gate code at deployment: a plain ERC-20
+            super._update(from, to, value);
+            return;
+        }
         if (value != 0 && from != launcher && block.timestamp >= openAt) {
             if (to == poolManager && from != poolManager) {
                 // a sell: the pool gets `value` (what the swap settles), the tax comes on top from the seller

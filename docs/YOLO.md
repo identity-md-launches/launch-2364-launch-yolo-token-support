@@ -116,7 +116,7 @@ The pool opens in the token's deployment transaction; trading opens at `openAt`,
 
 A buy is a transfer out of the Uniswap v4 `PoolManager`, a sell a transfer into it; the tax of a sell is taken from
 the seller's wallet on top of what goes into the pool. Wallet-to-wallet transfers, the factory (seeding, fee claims)
-and the `PoolManager` are never taxed; before trading opens nobody buys and sells are untaxed. If the gate address holds no code there is no whitelist.
+and the `PoolManager` are never taxed; before trading opens nobody buys and sells are untaxed. If the gate address holds no code at deployment, the token is a plain ERC-20 for good: no opening time, no whitelist, no tax.
 Known limits: a buy kept as an ERC-6909 claim inside the `PoolManager` is no transfer: a contract without an NFT
 can buy in minutes 0-30 and sell the claim back into the pool, or take it out after minute 60, without the gate
 and without the tax (the token cannot see it; only a pool hook could). A router or aggregator that takes the
