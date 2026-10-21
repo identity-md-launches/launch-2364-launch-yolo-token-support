@@ -7,8 +7,8 @@
     "decimals": 18,
     "constructorArgs": [
       "$poolManager",
-      "0x97C8Fe82527F1a65A147bB0b425C717E4EC547C2",
-      "0x3c587Eff6c96eAcF7E3dcC2CFf6416161386E48C",
+      "0x97c8fe82527f1a65a147bb0b425c717e4ec547c2",
+      "0x3c587eff6c96eacf7e3dcc2cff6416161386e48c",
       "1792584000"
     ],
     "totalSupply": "1000000000000000000000000000"
@@ -17,7 +17,7 @@
     {
       "contract": "DevPrices",
       "constructorArgs": [
-        "0x8Ad18E99F4C8d8406f9Ba8899CF308000518A981",
+        "0x8ad18e99f4c8d8406f9ba8899cf308000518a981",
         "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
         "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
         "$token",
@@ -36,13 +36,13 @@
     {
       "contract": "ParamsRegistry",
       "constructorArgs": [
-        "0x3c587Eff6c96eAcF7E3dcC2CFf6416161386E48C",
+        "0x3c587eff6c96eacf7e3dcc2cff6416161386e48c",
         "0xa43e6f75ee006411f79ac1c84120606c2330de82",
         "$contract:DevPrices",
         "$contract:UniswapV3SwapAdapter",
         "0x0000ec93127baa929e58e97dd0095a2bfb38ec1d",
         "0x00000000000000447e69651d841bd8d104bed493",
-        "0x3c587Eff6c96eAcF7E3dcC2CFf6416161386E48C",
+        "0x3c587eff6c96eacf7e3dcc2cff6416161386e48c",
         "0x5598aa9146215bc13eb26f2c692ad1461fd32982"
       ]
     },
@@ -63,7 +63,9 @@
     },
     {
       "contract": "AttestationChecker",
-      "constructorArgs": ["$contract:ParamsRegistry"]
+      "constructorArgs": [
+        "$contract:ParamsRegistry"
+      ]
     },
     {
       "contract": "BuybackBurner",
@@ -87,5 +89,5 @@
     "initialMarketCapWei": "15000000000000000000000",
     "remainderTo": "0xf165884070b1a1e571f4a3b50fd727fe8380bee4"
   },
-  "notes": "Ethereum mainnet (chain 1), support launch, second of four. NftGate and YoloSplitter are the fixed deployments from launch #2292. Supply allocation: swarm 10%, pool 15%, YoloSplitter 75%. initialPrice is the required manifest provenance value; the deployer derives the actual opening price from the 15,000 IMD market cap and supply. openAt remains 1792584000 (2026-10-21 12:00 UTC); deployment must be mined no later than openAt, and the gate snapshot must be recorded and sealed strictly before it. The brief permits a later openAt only when necessary, at most 1792594800; a later launch must fail. Audit dispositions and validation are in ADAPTATION.md. The later core and module launches are not part of this manifest."
+  "notes": "$YOLO of moneycanbuy.fun on Ethereum mainnet, the support launch (second of four, script/LaunchPlan.sol `support`), paired with IMD. YoloToken (src/token/YoloToken.sol): ERC-20 YOLO/YOLO, 18 decimals, 1,000,000,000 YOLO minted once to msg.sender (the factory); no owner, no mint, burn, pause or editable list. Constructor: the Uniswap v4 PoolManager ($poolManager), the NftGate of launch #2292 (0x97c8...47c2), the project wallet (0x3c58...e48c, buy and sell tax recipient) and openAt 1792584000 (21 Oct 2026 12:00 UTC; the constructor reverts BadOpenAt unless deployment <= openAt <= deployment + 30 days). If the launch cannot be mined before openAt, openAt may move later, at most to 1792594800 (15:00 UTC); otherwise the launch fails. A buy is a transfer out of the PoolManager, a sell a transfer into it. Before openAt buys revert TradingNotOpen(openAt); seeding and sells pass. If the gate address has no code at deployment the token is a plain ERC-20 for good. Schedule from openAt, taxes paid in YOLO to the project wallet: minutes 0-30 only snapshot wallets of the NftGate buy, untaxed (SnapshotNotSealed unless sealedAt() < openAt; consume(buyer, amount): NotWhitelisted, NftAllowanceExceeded above 500,000 YOLO per NFT), every sell pays 30%; minutes 30-60 anyone trades, tax on both sides falls linearly 30% -> 0 (buy tax = amount * 3000 * (3600 - elapsed) / 18,000,000, rounded down, from what the pool sends; a sell's tax comes on top from the seller, the pool gets exactly the swapped amount); from minute 60 a plain ERC-20. Wallet transfers are never taxed; the factory (seeding, claimFees, the swarm's share) and the PoolManager are exempt. Accepted limits: ERC-6909 claims kept in the PoolManager skip openAt, gate and tax until taken out; liquidity added from a wallet after openAt pays the sell tax; pools outside Uniswap v4 are untaxed; routes paying a router first are refused in minutes 0-30; a whole-balance sell in minutes 0-60 reverts. Supply: swarm 10% (factory), pool 15%, 75% to the YoloSplitter of launch #2292 (remainderTo). initialPrice is provenance only; the deployer derives the opening price from the 15,000 IMD opening cap. Support contracts, none holds user money: DevPrices (owner the dev wallet 0x8ad1...a981; USD prices of YOLO 0.001, ETH 2,400, IMD 5.5, USDC fixed at 1; zero refused, at most 10x per call, each change an event; prices size only the stake bonus; the dev wallet alone cancels a task). UniswapV3SwapAdapter (SwapRouter02, WETH): swaps ETH or USDC to IMD for bonds paid in another currency. ParamsRegistry (owner the project wallet; Intake v2, DevPrices, the adapter, the identity.md NFT, delegate.xyz v2, treasury, attester): versioned parameters (version 1 compiled in) and the swarm answer signers, changed only behind a 48-hour timelock inside compiled bounds; can pause new tasks; never moves or freezes money; the signer set is global. TextRules, SwarmQuestionBuilder and AttestationChecker (reads the registry) are stateless helpers. VotePower (NFT, delegate.xyz v2): who may vote with an NFT now, its owner or delegate; no state or owner. BuybackBurner (YOLO, IMD, USDC, DevPrices, buyback wallet 0x027e...df6e): anyone burns the YOLO it holds and forwards ETH, USDC and IMD to the buyback wallet, which the DevPrices owner may change. The core (YoloLockHub, CaseDesk, DisputeDesk, TaskVault) and the $YOLO modules follow as later launches taking these addresses as static arguments; they are not in this manifest."
 }
