@@ -1,0 +1,91 @@
+{
+  "kind": "custom_token",
+  "token": {
+    "contract": "YoloToken",
+    "name": "YOLO",
+    "symbol": "YOLO",
+    "decimals": 18,
+    "constructorArgs": [
+      "$poolManager",
+      "0x97C8Fe82527F1a65A147bB0b425C717E4EC547C2",
+      "0x3c587Eff6c96eAcF7E3dcC2CFf6416161386E48C",
+      "1792584000"
+    ],
+    "totalSupply": "1000000000000000000000000000"
+  },
+  "contracts": [
+    {
+      "contract": "DevPrices",
+      "constructorArgs": [
+        "0x8Ad18E99F4C8d8406f9Ba8899CF308000518A981",
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "$token",
+        "1000000000000000",
+        "2400000000000000000000",
+        "5500000000000000000"
+      ]
+    },
+    {
+      "contract": "UniswapV3SwapAdapter",
+      "constructorArgs": [
+        "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+      ]
+    },
+    {
+      "contract": "ParamsRegistry",
+      "constructorArgs": [
+        "0x3c587Eff6c96eAcF7E3dcC2CFf6416161386E48C",
+        "0xa43e6f75ee006411f79ac1c84120606c2330de82",
+        "$contract:DevPrices",
+        "$contract:UniswapV3SwapAdapter",
+        "0x0000ec93127baa929e58e97dd0095a2bfb38ec1d",
+        "0x00000000000000447e69651d841bd8d104bed493",
+        "0x3c587Eff6c96eAcF7E3dcC2CFf6416161386E48C",
+        "0x5598aa9146215bc13eb26f2c692ad1461fd32982"
+      ]
+    },
+    {
+      "contract": "TextRules",
+      "constructorArgs": []
+    },
+    {
+      "contract": "SwarmQuestionBuilder",
+      "constructorArgs": []
+    },
+    {
+      "contract": "VotePower",
+      "constructorArgs": [
+        "0x0000ec93127baa929e58e97dd0095a2bfb38ec1d",
+        "0x00000000000000447e69651d841bd8d104bed493"
+      ]
+    },
+    {
+      "contract": "AttestationChecker",
+      "constructorArgs": ["$contract:ParamsRegistry"]
+    },
+    {
+      "contract": "BuybackBurner",
+      "constructorArgs": [
+        "$token",
+        "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+        "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "$contract:DevPrices",
+        "0x027e55f01e8cf808e5d2a2ad68e5e7f67fd6df6e"
+      ]
+    }
+  ],
+  "pool": {
+    "pairedCurrency": "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
+    "fee": 12500,
+    "tickSpacing": 60,
+    "initialPrice": "79228162514264337593543950336"
+  },
+  "economics": {
+    "poolBps": 1500,
+    "initialMarketCapWei": "15000000000000000000000",
+    "remainderTo": "0xf165884070b1a1e571f4a3b50fd727fe8380bee4"
+  },
+  "notes": "Ethereum mainnet (chain 1), support launch, second of four. NftGate and YoloSplitter are the fixed deployments from launch #2292. Supply allocation: swarm 10%, pool 15%, YoloSplitter 75%. initialPrice is the required manifest provenance value; the deployer derives the actual opening price from the 15,000 IMD market cap and supply. openAt remains 1792584000 (2026-10-21 12:00 UTC); deployment must be mined no later than openAt, and the gate snapshot must be recorded and sealed strictly before it. The brief permits a later openAt only when necessary, at most 1792594800; a later launch must fail. Audit dispositions and validation are in ADAPTATION.md. The later core and module launches are not part of this manifest."
+}
